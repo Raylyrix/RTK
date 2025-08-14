@@ -1,0 +1,17 @@
+[
+  {
+    "id": "job_1755090022",
+    "name": "gbvdf",
+    "schedule_type": "daily",
+    "schedule_time": "09:00",
+    "template_subject": "iuhuasndfcpiu",
+    "template_body": "((company name)) hii ((name))",
+    "template_html": null,
+    "sheet_url": "https://docs.google.com/spreadsheets/d/1M4r_YWPy94xrcWRUKb652-tgNXqaGayuD_qwQ_lYIog/edit?usp=sharing",
+    "sheet_name": "Sheet1",
+    "batch_size": 5,
+    "time_gap": 3,
+    "created_at": "2025-08-13T18:30:22.381541",
+    "status": "active"
+  }
+]

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTX Innovations Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #FFFFFF;
+            color: #000000;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #F2F2F7;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .test-title {
+            color: #007AFF;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .test-button:hover {
+            background: #0056CC;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 16px;
+            background: #34C759;
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-title">RTX Innovations Test</h1>
+        <p style="text-align: center; font-size: 18px; margin-bottom: 30px;">
+            If you can see this styled page, the CSS is working correctly!
+        </p>
+        <div style="text-align: center;">
+            <button class="test-button" onclick="testClick()">Test Button</button>
+        </div>
+        <div class="status" id="status">
+            ✅ CSS is working! The app should display properly.
+        </div>
+    </div>
+
+    <script>
+        function testClick() {
+            document.getElementById('status').innerHTML = '🎉 Button clicked! Everything is working!';
+            document.getElementById('status').style.background = '#FF9500';
+        }
+        
+        console.log('Test page loaded successfully');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,35 @@
+# Node
+node_modules/
+rtx_innovations_electron/node_modules/
+
+# Electron build outputs
+rtx_innovations_electron/dist/
+rtx_innovations_electron/dist-builds/
+rtx_innovations_electron/logs/
+
+# Python build/cache
+__pycache__/
+rtx_innovations/**/__pycache__/
+rtx_innovations/build/
+rtx_innovations/cache/
+rtx_innovations/logs/
+
+# Logs
+*.log
+logs/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Credentials/tokens (keep out of git)
+client_secret_*.json
+credentials.json
+token.json
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Webpack artifacts
+rtx_innovations_electron/dist/ 

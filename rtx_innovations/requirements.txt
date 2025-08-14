@@ -1,0 +1,38 @@
+# RTX Innovations - Professional Email Marketing Platform
+# Core Dependencies
+tk
+ttkthemes>=3.2.2
+Pillow>=10.0.0
+requests>=2.31.0
+
+# Google API Integration
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
+google-api-python-client>=2.100.0
+gspread>=5.12.0
+
+# Data Processing & Utilities
+pandas>=2.0.3
+openpyxl>=3.1.2
+xlsxwriter>=3.1.9
+
+# UI Enhancements & Animations
+customtkinter>=5.2.0
+tkinter-tooltip>=2.1.0
+
+# Scheduling & Background Tasks
+schedule>=1.2.0
+APScheduler>=3.10.4
+
+# Logging & Configuration
+python-dotenv>=1.0.0
+colorlog>=6.7.0
+
+# File Handling
+pathlib2>=2.3.7
+watchdog>=3.0.0
+
+# Development & Build Tools
+pyinstaller>=6.0.0
+auto-py-to-exe>=2.32.0 
