@@ -2,6 +2,50 @@
 
 A comprehensive automatic email sender with Google Sheets integration, scheduling capabilities, modern GUI interface, and **enhanced attachment support**.
 
+### Download and Install (Desktop App)
+
+Use the packaged Electron desktop app for the easiest setup on Windows and macOS.
+
+- Go to Releases: https://github.com/Raylyrix/RTK/releases
+- Download one of the installer files:
+  - Windows (recommended): `RTX Innovations Setup <version>.exe`
+  - macOS (recommended): `RTX Innovations-<version>.pkg`
+  - macOS (alternative): `RTX Innovations-<version>.dmg` (drag and drop)
+
+#### Windows (.exe)
+1) Double‑click `RTX Innovations Setup <version>.exe`
+2) Choose installation directory (default is fine) → Next → Install
+3) Launch RTX Innovations from the desktop or Start menu
+4) If SmartScreen shows a warning: click “More info” → “Run anyway”
+
+#### macOS (.pkg) – recommended
+1) Double‑click `RTX Innovations-<version>.pkg`
+2) Continue → Agree → Install (enter password if prompted)
+3) Open RTX Innovations from Applications or Spotlight
+4) If blocked by Gatekeeper: right‑click the installer → Open → Open
+
+#### macOS (.dmg) – alternative
+1) Double‑click `RTX Innovations-<version>.dmg`
+2) Drag “RTX Innovations” into Applications
+3) Eject the disk image, then launch from Applications
+4) If blocked by Gatekeeper: right‑click the app → Open → Open (or System Settings → Privacy & Security → Open Anyway)
+
+#### First‑run setup
+- Click “Login” → “Upload credentials” and select your Google OAuth `credentials.json`
+- A browser window opens; sign in and approve Gmail/Sheets permissions
+- On success, the app saves your token and returns to the app
+- Paste your Google Sheets link and start your campaign
+
+#### Auto‑updates
+- The app checks for updates on launch and will prompt when a new version is available
+- Click “Download” and then “Install” when prompted; the app restarts into the new version (e.g., v3)
+
+#### Troubleshooting (quick)
+- Windows: If blocked by SmartScreen → “More info” → “Run anyway”
+- macOS: If blocked by Gatekeeper → right‑click → Open → Open (or Privacy & Security → Open Anyway)
+- Network: Allow the app through firewalls/proxies to sign in and check for updates
+- Logs: Use the in‑app Logs panel and follow on‑screen guidance
+
 ## Features
 
 - 🔐 **Google Authentication** - Secure OAuth integration with Google APIs
