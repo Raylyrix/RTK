@@ -20,6 +20,12 @@ const crypto = require('crypto');
 // Initialize store
 const store = new Store();
 
+// Global variables for Google services
+let oauth2Client = null;
+let gmailService = null;
+let sheetsService = null;
+let mainWindow = null;
+
 function getInstallId() {
 	let id = store.get('installId');
 	if (!id) {
