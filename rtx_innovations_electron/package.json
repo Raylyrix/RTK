@@ -74,10 +74,7 @@
       {
         "provider": "github",
         "owner": "Raylyrix",
-        "repo": "RTK",
-        "releaseType": "release",
-        "draft": false,
-        "prerelease": false
+        "repo": "RTK"
       }
     ],
     "win": {
