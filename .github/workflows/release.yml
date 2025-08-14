@@ -23,7 +23,7 @@ jobs:
       - run: npm run gen-icons
       - name: Build and publish (Windows)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN != '' && secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win --publish always
 
   build-and-publish-macos:
@@ -40,6 +40,6 @@ jobs:
       - run: npm run gen-icons
       - name: Build and publish (macOS)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN != '' && secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npx electron-builder --mac pkg --publish always 
