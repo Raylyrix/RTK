@@ -48,9 +48,7 @@ npm run build-win
 build.bat
 ```
 
-### CI Releases from tags
-
-Push a tag like `v1.2.3` to trigger GitHub Actions release builds. The workflow syncs `package.json` version from the tag before building, so installer names and auto-updates use the same version.
+ 
 
 ## Project Structure
 

@@ -1,6 +1,6 @@
 {
   "name": "rtx-innovations",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Professional Email Marketing Platform - RTX Innovations",
   "main": "src/main.js",
   "homepage": "./",
@@ -12,7 +12,6 @@
     "electron": "wait-on dist/bundle.js && electron .",
     "build": "webpack --config webpack.config.js",
     "gen-icons": "node ./scripts/generate-icons.js",
-    "set-version-from-tag": "node ./scripts/set-version-from-tag.js",
     "build-win": "npm run build && npm run gen-icons && electron-builder --win",
     "build-mac": "npm run build && npm run gen-icons && electron-builder --mac pkg",
     "build-linux": "npm run build && npm run gen-icons && electron-builder --linux",
