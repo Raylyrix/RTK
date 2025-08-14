@@ -91,7 +91,12 @@
       "artifactName": "RTX-Innovations-Setup-${version}.${ext}"
     },
     "mac": {
-      "target": ["pkg"],
+      "target": [
+        {
+          "target": "pkg",
+          "arch": ["arm64"]
+        }
+      ],
       "icon": "assets/icons/icon.icns",
       "category": "public.app-category.business",
       "artifactName": "RTX-Innovations-${version}.${ext}"
