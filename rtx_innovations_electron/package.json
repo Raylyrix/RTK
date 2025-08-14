@@ -1,6 +1,6 @@
 {
   "name": "rtx-innovations",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Professional Email Marketing Platform - RTX Innovations",
   "main": "src/main.js",
   "homepage": "./",
@@ -80,7 +80,7 @@
     "win": {
       "target": [
         {
-          "target": "nsis-web",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -88,12 +88,6 @@
       ],
       "icon": "assets/icons/icon.ico",
       "requestedExecutionLevel": "asInvoker"
-    },
-    "nsisWeb": {
-      "oneClick": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true
     },
     "mac": {
       "target": ["pkg"],
