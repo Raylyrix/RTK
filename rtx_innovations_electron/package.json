@@ -1,6 +1,6 @@
 {
   "name": "rtx-innovations",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "description": "Professional Email Marketing Platform - RTX Innovations",
   "main": "src/main.js",
   "homepage": "./",
@@ -79,25 +79,13 @@
       }
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": "nsis",
       "icon": "assets/icons/icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "RTX-Innovations-Setup-${version}.${ext}"
     },
     "mac": {
-      "target": [
-        {
-          "target": "pkg",
-          "arch": ["arm64"]
-        }
-      ],
+      "target": "pkg",
       "icon": "assets/icons/icon.icns",
       "category": "public.app-category.business",
       "identity": null,

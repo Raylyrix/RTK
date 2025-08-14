@@ -40,7 +40,7 @@ jobs:
       - name: Package and publish (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --x64 --publish always --config.win.target=nsis --config.mac.target=pkg
+        run: npx electron-builder --win --publish always
 
   build-macos:
     runs-on: macos-latest
@@ -72,6 +72,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npx electron-builder --mac pkg --arm64 --publish always --config.win.target=nsis --config.mac.target=pkg
+        run: npx electron-builder --mac --publish always
 
 
