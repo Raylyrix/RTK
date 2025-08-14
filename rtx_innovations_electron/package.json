@@ -36,6 +36,7 @@
     "electron-builder": "^24.6.4",
     "html-webpack-plugin": "^5.5.3",
     "icon-gen": "^3.0.1",
+    "sharp": "^0.33.2",
     "style-loader": "^3.3.3",
     "wait-on": "^7.2.0",
     "webpack": "^5.89.0",
