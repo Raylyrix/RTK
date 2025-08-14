@@ -37,10 +37,15 @@ jobs:
       - name: Generate icons
         run: npm run gen-icons
 
-      - name: Package and publish (Windows)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --publish always
+      - name: Package (Windows)
+        run: npx electron-builder --win nsis
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist-builds/*.exe
+          retention-days: 30
 
   build-macos:
     runs-on: macos-latest
@@ -68,10 +73,46 @@ jobs:
       - name: Generate icons
         run: npm run gen-icons
 
-      - name: Package and publish (macOS)
+      - name: Package (macOS)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npx electron-builder --mac pkg --publish always
+        run: npx electron-builder --mac pkg
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: dist-builds/*.pkg
+          retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: ./windows
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-installer
+          path: ./macos
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./windows/*.exe
+            ./macos/*.pkg
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 

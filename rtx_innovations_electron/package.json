@@ -70,14 +70,7 @@
     "extraMetadata": {
       "main": "src/main.js"
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "Raylyrix",
-        "repo": "RTK",
-        "publishAutoUpdate": false
-      }
-    ],
+
     "win": {
       "target": "nsis",
       "icon": "assets/icons/icon.ico",
