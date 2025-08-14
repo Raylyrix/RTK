@@ -74,7 +74,10 @@
       {
         "provider": "github",
         "owner": "Raylyrix",
-        "repo": "RTK"
+        "repo": "RTK",
+        "releaseType": "release",
+        "draft": false,
+        "prerelease": false
       }
     ],
     "win": {
@@ -87,12 +90,14 @@
         }
       ],
       "icon": "assets/icons/icon.ico",
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "RTX-Innovations-Setup-${version}.${ext}"
     },
     "mac": {
       "target": ["pkg"],
       "icon": "assets/icons/icon.icns",
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "artifactName": "RTX-Innovations-${version}.${ext}"
     },
     "linux": {
       "target": "AppImage",
