@@ -2,6 +2,8 @@
 
 A comprehensive automatic email sender with Google Sheets integration, scheduling capabilities, modern GUI interface, and **enhanced attachment support**.
 
+> Note: We distribute installers only (no source code bundles). Download a single installer from Releases and run it — it will set up the app, create Start Menu/Desktop shortcuts, and auto‑update.
+
 ### Download and Install (Desktop App)
 
 Use the packaged Electron desktop app for the easiest setup on Windows and macOS.
