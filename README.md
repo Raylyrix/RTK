@@ -2,51 +2,41 @@
 
 A comprehensive automatic email sender with Google Sheets integration, scheduling capabilities, modern GUI interface, and **enhanced attachment support**.
 
-> Note: We distribute installers only (no source code bundles). Download a single installer from Releases and run it — it will set up the app, create Start Menu/Desktop shortcuts, and auto‑update.
+> Note: We distribute installers only (no source code bundles). Download a single installer from Releases and run it — it will set up the app, create Start Menu/Desktop shortcuts, and auto‑update. Installers fetch any missing components automatically.
 
 ### Download and Install (Desktop App)
 
 Use the packaged Electron desktop app for the easiest setup on Windows and macOS.
 
 - Go to Releases: https://github.com/Raylyrix/RTK/releases
-- Download one of the installer files:
-  - Windows (recommended): `RTX Innovations Setup <version>.exe`
-  - macOS (recommended): `RTX Innovations-<version>.pkg`
-  - macOS (alternative): `RTX Innovations-<version>.dmg` (drag and drop)
+- Download the single installer for your OS:
+  - Windows (single file): `RTX Innovations Web Setup <version>.exe` (web installer)
+  - macOS (single file): `RTX Innovations-<version>.pkg`
 
-#### Windows (.exe)
-1) Double‑click `RTX Innovations Setup <version>.exe`
-2) Choose installation directory (default is fine) → Next → Install
-3) Launch RTX Innovations from the desktop or Start menu
-4) If SmartScreen shows a warning: click “More info” → “Run anyway”
+#### Windows (Web Setup .exe)
+1) Double‑click the `.exe`. It will download any required components automatically.
+2) The installer runs with one click, installs, creates desktop and Start menu shortcuts, and launches the app.
+3) If SmartScreen warns: click “More info” → “Run anyway”.
 
-#### macOS (.pkg) – recommended
-1) Double‑click `RTX Innovations-<version>.pkg`
-2) Continue → Agree → Install (enter password if prompted)
-3) Open RTX Innovations from Applications or Spotlight
-4) If blocked by Gatekeeper: right‑click the installer → Open → Open
-
-#### macOS (.dmg) – alternative
-1) Double‑click `RTX Innovations-<version>.dmg`
-2) Drag “RTX Innovations” into Applications
-3) Eject the disk image, then launch from Applications
-4) If blocked by Gatekeeper: right‑click the app → Open → Open (or System Settings → Privacy & Security → Open Anyway)
+#### macOS (.pkg)
+1) Double‑click the `.pkg` and follow the prompts (Continue → Agree → Install).
+2) App installs into Applications and is ready to run from Spotlight or Launchpad.
+3) If blocked by Gatekeeper: right‑click the installer → Open → Open.
 
 #### First‑run setup
-- Click “Login” → “Upload credentials” and select your Google OAuth `credentials.json`
-- A browser window opens; sign in and approve Gmail/Sheets permissions
-- On success, the app saves your token and returns to the app
-- Paste your Google Sheets link and start your campaign
+- Click “Login” → “Upload credentials” and select your Google OAuth `credentials.json`.
+- A browser window opens; sign in and approve Gmail/Sheets permissions.
+- On success, the app saves your token and returns to the app.
 
 #### Auto‑updates
-- The app checks for updates on launch and will prompt when a new version is available
-- Click “Download” and then “Install” when prompted; the app restarts into the new version (e.g., v3)
+- The app checks for updates on launch and will prompt when a new version is available.
+- Click “Download” then “Install” when prompted; the app restarts into the new version (e.g., v3).
 
 #### Troubleshooting (quick)
-- Windows: If blocked by SmartScreen → “More info” → “Run anyway”
-- macOS: If blocked by Gatekeeper → right‑click → Open → Open (or Privacy & Security → Open Anyway)
-- Network: Allow the app through firewalls/proxies to sign in and check for updates
-- Logs: Use the in‑app Logs panel and follow on‑screen guidance
+- Windows: SmartScreen → “More info” → “Run anyway”.
+- macOS: Gatekeeper → right‑click → Open (or System Settings → Privacy & Security → Open Anyway).
+- Network: Allow the app to access the Internet to sign in, download updates, and send email.
+- Logs: Use the in‑app Logs panel and follow guidance.
 
 ## Features
 
