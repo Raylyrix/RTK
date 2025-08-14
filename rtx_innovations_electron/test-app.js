@@ -1,28 +1,63 @@
-// Simple test script to verify the app is working
-console.log('🧪 Testing AutoMailer Pro...');
+// Test script to verify all required modules are available
+console.log('🧪 Testing RTX Innovations dependencies...');
 
-// Test DOM access
-if (typeof document !== 'undefined') {
-    console.log('✅ DOM is available');
-    
-    // Test if our elements exist
-    const loginBtn = document.getElementById('loginBtn');
-    const connectSheetsBtn = document.getElementById('connectSheetsBtn');
-    const campaignName = document.getElementById('campaignName');
-    
-    console.log('Login button found:', !!loginBtn);
-    console.log('Connect sheets button found:', !!connectSheetsBtn);
-    console.log('Campaign name input found:', !!campaignName);
-    
-    // Test if our app is initialized
-    if (window.rtxApp) {
-        console.log('✅ RTX App is initialized');
-        console.log('App authenticated:', window.rtxApp.isAuthenticated);
-    } else {
-        console.log('❌ RTX App not found');
-    }
-} else {
-    console.log('❌ DOM not available');
+// Test if all required modules are available
+const modules = [
+  'electron-store',
+  'googleapis', 
+  'node-cron',
+  'mime-types',
+  'xlsx',
+  'csv-parser',
+  'moment'
+];
+
+let allModulesLoaded = true;
+
+modules.forEach(moduleName => {
+  try {
+    require(moduleName);
+    console.log(`✅ ${moduleName} loaded successfully`);
+  } catch (error) {
+    console.error(`❌ Error loading ${moduleName}:`, error.message);
+    allModulesLoaded = false;
+  }
+});
+
+// Test electron-is-dev separately (only works in Electron environment)
+try {
+  require('electron-is-dev');
+  console.log('✅ electron-is-dev loaded successfully');
+} catch (error) {
+  console.log('⚠️  electron-is-dev: Not running in Electron environment (expected)');
 }
 
-console.log('�� Test complete'); 
+// Test if the build files exist
+const fs = require('fs');
+const path = require('path');
+
+const requiredFiles = [
+  'dist/index.html',
+  'dist/bundle.js',
+  'src/main.js',
+  'src/preload.js'
+];
+
+console.log('\n📁 Checking required files...');
+requiredFiles.forEach(file => {
+  const filePath = path.join(__dirname, file);
+  if (fs.existsSync(filePath)) {
+    console.log(`✅ ${file} exists`);
+  } else {
+    console.error(`❌ ${file} missing`);
+    allModulesLoaded = false;
+  }
+});
+
+if (allModulesLoaded) {
+  console.log('\n✅ All tests passed! The application should work properly.');
+  console.log('You can now run: npm run dev-simple');
+} else {
+  console.log('\n❌ Some tests failed. Please check the errors above.');
+  process.exit(1);
+} 

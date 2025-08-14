@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	onAuthSuccess: (callback) => ipcRenderer.on('auth-success', (_e, data) => callback(data)),
 	
 	// Google API Integration
+	updateClientCredentials: (credentials) => ipcRenderer.invoke('updateClientCredentials', credentials),
 	authenticateGoogle: (credentials) => ipcRenderer.invoke('authenticateGoogle', credentials),
 	initializeGmailService: (credentials) => ipcRenderer.invoke('initializeGmailService', credentials),
 	initializeSheetsService: (credentials) => ipcRenderer.invoke('initializeSheetsService', credentials),

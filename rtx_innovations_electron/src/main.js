@@ -26,6 +26,32 @@ let gmailService = null;
 let sheetsService = null;
 let mainWindow = null;
 
+// Function to update and store client credentials
+function updateClientCredentials(credentialsData) {
+	try {
+		const norm = normalizeCredentials(credentialsData);
+		store.set('googleCreds', norm);
+		
+		// Clear any existing tokens to force re-authentication
+		store.delete('googleToken');
+		
+		// Reset services
+		gmailService = null;
+		sheetsService = null;
+		oauth2Client = null;
+		
+		logEvent('info', 'Client credentials updated', { 
+			clientId: norm.client_id ? 'present' : 'missing',
+			hasRedirectUri: !!norm.redirect_uri 
+		});
+		
+		return { success: true, message: 'Credentials updated successfully' };
+	} catch (error) {
+		logEvent('error', 'Failed to update credentials', { error: error.message });
+		return { success: false, error: error.message };
+	}
+}
+
 function getInstallId() {
 	let id = store.get('installId');
 	if (!id) {
@@ -217,6 +243,8 @@ function normalizeCredentials(raw) {
 }
 
 function buildOAuthClient(norm, redirectUriOverride) {
+	// For desktop apps, Google automatically handles redirect URIs
+	// Use the redirect URI from credentials or default to localhost
 	const redirect = redirectUriOverride || norm.redirect_uri || 'http://localhost';
 	return new google.auth.OAuth2(norm.client_id, norm.client_secret, redirect);
 }
@@ -297,18 +325,12 @@ async function authenticateGoogle(credentialsData) {
 				tryListen(host, port);
 			};
 
-			if (norm.fixed && norm.redirect_uri) {
-				const parsed = new URL(norm.redirect_uri);
-				const host = parsed.hostname || 'localhost';
-				// If no port provided, use random port instead of 80
-				const port = parsed.port ? parseInt(parsed.port, 10) : 0;
-				const pathName = parsed.pathname || '/';
-				startServer(host, port, pathName);
-			} else {
-				const host = norm.host || 'localhost';
-				const pathName = '/';
-				startServer(host, 0, pathName);
-			}
+			// For desktop apps, use dynamic port allocation
+			// Google will redirect to localhost with a random port
+			const host = 'localhost';
+			const port = 0; // Let the system assign a random port
+			const pathName = '/';
+			startServer(host, port, pathName);
 
 			setTimeout(() => {
 				if (!settled) {
@@ -332,7 +354,20 @@ async function authenticateGoogle(credentialsData) {
 		console.error('Authentication error:', error);
 		logEvent('error', 'Authentication error', { error: error.message });
 		trackTelemetry('auth_error', { error: error.message });
-		return { success: false, error: error.message };
+		
+		// Provide more helpful error messages for desktop apps
+		let errorMessage = error.message;
+		if (error.message.includes('unauthorized_client')) {
+			errorMessage = 'Unauthorized client. Please check your Google OAuth credentials. Make sure you downloaded the credentials for a "Desktop application" type from Google Cloud Console.';
+		} else if (error.message.includes('invalid_client')) {
+			errorMessage = 'Invalid client. Please check your client ID and client secret in the credentials file.';
+		} else if (error.message.includes('access_denied')) {
+			errorMessage = 'Access denied. Please make sure you have enabled the required APIs (Gmail API and Google Sheets API) in your Google Cloud project.';
+		} else if (error.message.includes('redirect_uri_mismatch')) {
+			errorMessage = 'Redirect URI mismatch. For desktop apps, this should be handled automatically. Please try updating your credentials.';
+		}
+		
+		return { success: false, error: errorMessage };
 	}
 }
 
@@ -743,6 +778,7 @@ function cancelScheduledJob(id) {
 }
 
 // IPC Handlers
+ipcMain.handle('updateClientCredentials', async (event, credentialsData) => updateClientCredentials(credentialsData));
 ipcMain.handle('authenticateGoogle', async (event, credentialsData) => authenticateGoogle(credentialsData));
 ipcMain.handle('initializeGmailService', async () => initializeGmailService());
 ipcMain.handle('initializeSheetsService', async () => initializeSheetsService());
