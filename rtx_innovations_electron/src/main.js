@@ -5,6 +5,9 @@ const { google } = require('googleapis');
 const http = require('http');
 const url = require('url');
 const cron = require('node-cron');
+// SMTP/IMAP for Gmail App Password mode
+let nodemailer;
+let ImapFlow;
 
 // Auto-update and env helpers
 const isDev = (() => {
@@ -134,6 +137,49 @@ const SCOPES = [
 	'https://www.googleapis.com/auth/gmail.settings.basic'
 ];
 
+// SMTP/IMAP helpers for App Password mode
+function getSmtpStore() {
+    try { return store.get('smtp') || {}; } catch (_) { return {}; }
+}
+function setSmtpStore(obj) {
+    try { store.set('smtp', obj || {}); } catch (_) {}
+}
+function getActiveSmtpEmail() {
+    try { return store.get('smtp.activeEmail') || null; } catch (_) { return null; }
+}
+function setActiveSmtpEmail(email) {
+    try { store.set('smtp.activeEmail', email); } catch (_) {}
+}
+function getSmtpCreds(email) {
+    const smtp = getSmtpStore();
+    return smtp[email] || null;
+}
+function saveSmtpCreds(email, appPassword) {
+    const smtp = getSmtpStore();
+    smtp[email] = { email, appPassword, ts: Date.now() };
+    setSmtpStore(smtp);
+    setActiveSmtpEmail(email);
+}
+function clearSmtpCreds(email) {
+    const smtp = getSmtpStore();
+    delete smtp[email];
+    setSmtpStore(smtp);
+    const active = getActiveSmtpEmail();
+    if (active === email) setActiveSmtpEmail(null);
+}
+
+function isOAuthAvailable() {
+    try { return !!store.get('googleToken'); } catch (_) { return false; }
+}
+
+async function ensureMailer() {
+    if (!nodemailer) nodemailer = require('nodemailer');
+}
+
+async function ensureImap() {
+    if (!ImapFlow) ImapFlow = require('imapflow').ImapFlow;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
 		width: 1200,
@@ -229,8 +275,11 @@ function normalizeCredentials(raw) {
 	if (raw?.web) {
 		const web = raw.web;
 		if (!web.client_id || !web.client_secret) throw new Error('Missing client_id/client_secret');
-		const exact = Array.isArray(web.redirect_uris) ? web.redirect_uris.find(u => u.startsWith('http://localhost')) : null;
+		const exact = Array.isArray(web.redirect_uris)
+			? web.redirect_uris.find(u => /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(u))
+			: null;
 		if (!exact) {
+			// No loopback redirect URI registered on this Web client. We cannot use a random port.
 			return { client_id: web.client_id, client_secret: web.client_secret, redirect_uri: null, fixed: false };
 		}
 		return { client_id: web.client_id, client_secret: web.client_secret, redirect_uri: exact, fixed: true };
@@ -238,7 +287,7 @@ function normalizeCredentials(raw) {
 	const creds = raw?.installed || raw;
 	if (!creds) throw new Error('Invalid credentials file format');
 	if (!creds.client_id || !creds.client_secret) throw new Error('Missing client_id/client_secret in credentials');
-	const hasLocalhost = Array.isArray(creds.redirect_uris) && creds.redirect_uris.some(u => u.startsWith('http://localhost'));
+	const hasLocalhost = Array.isArray(creds.redirect_uris) && creds.redirect_uris.some(u => /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(u));
 	return { client_id: creds.client_id, client_secret: creds.client_secret, redirect_uri: null, fixed: false, host: hasLocalhost ? 'localhost' : '127.0.0.1' };
 }
 
@@ -254,6 +303,12 @@ async function ensureServices() {
 		const token = store.get('googleToken');
 		const norm = store.get('googleCreds');
 		if (!token || !norm) throw new Error('Not authenticated');
+		// If token was issued for a different client, discard and force re-auth
+		const tokenClientId = store.get('googleTokenClientId');
+		if (tokenClientId && tokenClientId !== norm.client_id) {
+			store.delete('googleToken');
+			throw new Error('Not authenticated');
+		}
 		oauth2Client = buildOAuthClient(norm);
 		oauth2Client.setCredentials(token);
 	}
@@ -292,10 +347,11 @@ async function authenticateGoogle(credentialsData) {
 						// Accept any path as long as code exists
 						const code = reqUrl.searchParams.get('code');
 						if (!code) { res.writeHead(400); res.end('Missing code'); return; }
-						const { tokens } = await oauth2Client.getToken(code);
-						oauth2Client.setCredentials(tokens);
-						res.writeHead(200, { 'Content-Type': 'text/html' });
-						res.end('<html><body><h2>Authentication successful. You can close this window.</h2></body></html>');
+                        const { tokens } = await oauth2Client.getToken(code);
+                        oauth2Client.setCredentials(tokens);
+                        try { if (mainWindow && mainWindow.webContents) { mainWindow.webContents.send('auth-progress', { step: 'token-received' }); } } catch (_) {}
+                        res.writeHead(200, { 'Content-Type': 'text/html' });
+                        res.end('<html><body><h2>Authentication successful. You can close this window and return to the app.</h2><script>setTimeout(()=>{window.close()},500);</script></body></html>');
 						settled = true;
 						server.close(() => resolve(tokens));
 					} catch (err) {
@@ -325,12 +381,19 @@ async function authenticateGoogle(credentialsData) {
 				tryListen(host, port);
 			};
 
-			// For desktop apps, use dynamic port allocation
-			// Google will redirect to localhost with a random port
-			const host = 'localhost';
-			const port = 0; // Let the system assign a random port
-			const pathName = '/';
-			startServer(host, port, pathName);
+			// Choose server binding based on credential type
+			if (norm.fixed && norm.redirect_uri) {
+				const parsed = new URL(norm.redirect_uri);
+				const host = parsed.hostname || 'localhost';
+				const port = parsed.port ? parseInt(parsed.port, 10) : 80;
+				const pathName = parsed.pathname || '/';
+				startServer(host, port, pathName);
+			} else {
+				// Desktop app style: dynamic random port on loopback per Google guidelines
+				const host = norm.host || 'localhost';
+				const pathName = '/';
+				startServer(host, 0, pathName);
+			}
 
 			setTimeout(() => {
 				if (!settled) {
@@ -341,12 +404,15 @@ async function authenticateGoogle(credentialsData) {
 			}, 300000); // 5 minutes
 		});
 
-		store.set('googleToken', token);
-		await ensureServices();
-		const profile = await gmailService.users.getProfile({ userId: 'me' });
-		if (mainWindow && mainWindow.webContents) {
-			mainWindow.webContents.send('auth-success', { email: profile.data.emailAddress });
-		}
+        store.set('googleToken', token);
+        store.set('googleTokenClientId', norm.client_id);
+        await ensureServices();
+        const profile = await gmailService.users.getProfile({ userId: 'me' });
+        saveAccountEntry(profile.data.emailAddress, norm, token);
+        try { store.set('app-settings', { isAuthenticated: true, currentAccount: profile.data.emailAddress }); } catch(_) {}
+        if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send('auth-success', { email: profile.data.emailAddress });
+        }
 		logEvent('info', 'Authenticated and token stored', { email: profile.data.emailAddress });
 		trackTelemetry('auth_success');
 		return { success: true, userEmail: profile.data.emailAddress };
@@ -354,6 +420,10 @@ async function authenticateGoogle(credentialsData) {
 		console.error('Authentication error:', error);
 		logEvent('error', 'Authentication error', { error: error.message });
 		trackTelemetry('auth_error', { error: error.message });
+		// If token invalid for this client (401/unauthorized_client), purge and ask user to try again
+		if (/unauthorized_client|invalid_grant|invalid_client/i.test(error.message)) {
+			try { store.delete('googleToken'); } catch (_) {}
+		}
 		
 		// Provide more helpful error messages for desktop apps
 		let errorMessage = error.message;
@@ -373,8 +443,11 @@ async function authenticateGoogle(credentialsData) {
 
 async function initializeGmailService() {
 	try {
-		await ensureServices();
-		return { success: true };
+		if (isOAuthAvailable()) {
+			await ensureServices();
+			return { success: true };
+		}
+		return { success: true, mode: 'smtp' };
 	} catch (error) {
 		return { success: false, error: error.message };
 	}
@@ -391,20 +464,54 @@ async function initializeSheetsService() {
 
 async function connectToSheets(arg) {
 	try {
-		await ensureServices();
-		let sheetId = arg;
-		let sheetTitle = null;
-		if (arg && typeof arg === 'object') {
-			sheetId = arg.sheetId;
-			sheetTitle = arg.sheetTitle || null;
+		// If OAuth is available, use Google Sheets API
+		if (isOAuthAvailable()) {
+			await ensureServices();
+			let sheetId = arg;
+			let sheetTitle = null;
+			if (arg && typeof arg === 'object') {
+\t\t\t\tsheetId = arg.sheetId;
+\t\t\t\tsheetTitle = arg.sheetTitle || null;
+\t\t\t}
+			const range = sheetTitle ? `${sheetTitle}!A:Z` : 'A:Z';
+			const response = await sheetsService.spreadsheets.values.get({ spreadsheetId: sheetId, range });
+			const values = response.data.values || [];
+			if (!values.length) throw new Error('No data found in sheet');
+			const headers = values[0];
+			const rows = values.slice(1);
+			return { success: true, data: { headers, rows } };
 		}
-		const range = sheetTitle ? `${sheetTitle}!A:Z` : 'A:Z';
-		const response = await sheetsService.spreadsheets.values.get({ spreadsheetId: sheetId, range });
-		const values = response.data.values || [];
-		if (!values.length) throw new Error('No data found in sheet');
-		const headers = values[0];
-		const rows = values.slice(1);
-		return { success: true, data: { headers, rows } };
+		// Fallback: try CSV export if the sheet is shared publicly (Anyone with link)
+		const https = require('https');
+		let sheetId = typeof arg === 'object' ? (arg.sheetId || '') : String(arg || '');
+		let rawUrl = typeof arg === 'object' ? (arg.rawUrl || '') : '';
+		let gid = null;
+		try { if (rawUrl) { const parsed = new URL(rawUrl); gid = parsed.searchParams.get('gid'); } } catch (_) {}
+		if (!sheetId && rawUrl) {
+			try {
+				const m = rawUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+				if (m) sheetId = m[1];
+			} catch (_) {}
+		}
+		if (!sheetId) throw new Error('Missing Google Sheet ID');
+		const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv${gid ? `&gid=${gid}` : ''}`;
+		const csv = await new Promise((resolve, reject) => {
+			https.get(exportUrl, (res) => {
+				if (res.statusCode !== 200) { reject(new Error(`Failed to fetch CSV (status ${res.statusCode}). Share the sheet as Anyone with the link.`)); return; }
+				let data = '';
+				res.setEncoding('utf8');
+				res.on('data', (chunk) => data += chunk);
+				res.on('end', () => resolve(data));
+			}).on('error', (e) => reject(e));
+		});
+		const XLSX = require('xlsx');
+		const wb = XLSX.read(csv, { type: 'string' });
+		const first = wb.SheetNames[0];
+		const rows = XLSX.utils.sheet_to_json(wb.Sheets[first], { header: 1 });
+		if (!rows || !rows.length) throw new Error('No data found in sheet CSV');
+		const headers = rows[0];
+		const body = rows.slice(1);
+		return { success: true, data: { headers, rows: body } };
 	} catch (error) {
 		console.error('Sheets connection error:', error);
 		return { success: false, error: error.message };
@@ -416,29 +523,42 @@ function toBase64Url(str) {
 }
 
 async function listSendAs() {
-	await ensureServices();
-	const res = await gmailService.users.settings.sendAs.list({ userId: 'me' });
-	return (res.data.sendAs || []).map(s => ({
-		email: s.sendAsEmail,
-		name: s.displayName || '',
-		isPrimary: !!s.isPrimary,
-		verificationStatus: s.verificationStatus,
-		signature: s.signature || ''
-	}));
+	if (isOAuthAvailable()) {
+		await ensureServices();
+		const res = await gmailService.users.settings.sendAs.list({ userId: 'me' });
+		return (res.data.sendAs || []).map(s => ({
+			email: s.sendAsEmail,
+			name: s.displayName || '',
+			isPrimary: !!s.isPrimary,
+			verificationStatus: s.verificationStatus,
+			signature: s.signature || ''
+		}));
+	}
+	const email = getActiveSmtpEmail();
+	if (email) return [{ email, name: '', isPrimary: true, verificationStatus: 'accepted', signature: (store.get(`smtp.signature.${email}`) || '') }];
+	return [];
 }
 
 async function getPrimarySignature() {
-	await ensureServices();
-	const res = await gmailService.users.settings.sendAs.list({ userId: 'me' });
-	const list = res.data.sendAs || [];
-	const pri = list.find(s => s.isPrimary) || list[0];
-	return pri?.signature || '';
+	if (isOAuthAvailable()) {
+		await ensureServices();
+		const res = await gmailService.users.settings.sendAs.list({ userId: 'me' });
+		const list = res.data.sendAs || [];
+		const pri = list.find(s => s.isPrimary) || list[0];
+		return pri?.signature || '';
+	}
+	const email = getActiveSmtpEmail();
+	return (email && (store.get(`smtp.signature.${email}`) || '')) || '';
 }
 
 async function listSheets(sheetId) {
-	await ensureServices();
-	const meta = await sheetsService.spreadsheets.get({ spreadsheetId: sheetId });
-	return (meta.data.sheets || []).map(s => s.properties.title);
+	if (isOAuthAvailable()) {
+		await ensureServices();
+		const meta = await sheetsService.spreadsheets.get({ spreadsheetId: sheetId });
+		return (meta.data.sheets || []).map(s => s.properties.title);
+	}
+	// Fallback cannot list tabs without OAuth
+	return [];
 }
 
 function columnIndexToA1(n) {
@@ -473,6 +593,9 @@ async function ensureStatusColumn(sheetId, sheetTitle, headers) {
 }
 
 async function updateSheetStatus(sheetId, sheetTitle, headers, rowIndexZeroBased, statusText) {
+	if (!isOAuthAvailable()) {
+		return { success: false, error: 'Write to Google Sheets requires Google sign-in. Status not updated (read-only mode).' };
+	}
 	await ensureServices();
 	// Resolve sheetTitle if missing
 	let title = sheetTitle;
@@ -513,6 +636,21 @@ function logEvent(level, message, meta) {
 	} catch (e) {
 		// swallow
 	}
+}
+
+// Account storage helpers
+function getAccountsMap() {
+    try { return store.get('accounts') || {}; } catch (_) { return {}; }
+}
+function saveAccountEntry(userEmail, norm, token) {
+    const map = getAccountsMap();
+    map[userEmail] = { client_id: norm.client_id, creds: norm, token };
+    store.set('accounts', map);
+}
+function removeAccountEntry(userEmail) {
+    const map = getAccountsMap();
+    delete map[userEmail];
+    store.set('accounts', map);
 }
 
 // Global error handlers with guidance
@@ -659,19 +797,31 @@ function buildRawEmail({ from, to, subject, text, html, attachments }) {
 
 async function sendTestEmail(emailData) {
 	try {
-		await ensureServices();
-		logEvent('info', 'Sending test email', { to: emailData.to, attachments: (emailData.attachmentsPaths || []).length });
-		const rawStr = buildRawEmail({
-			from: emailData.from,
-			to: emailData.to,
-			subject: emailData.subject,
-			text: emailData.content,
-			attachments: emailData.attachmentsPaths || []
-		});
-		const res = await gmailService.users.messages.send({ userId: 'me', requestBody: { raw: toBase64Url(rawStr) } });
-		logEvent('info', 'Test email sent', { to: emailData.to, id: res.data.id });
-		trackTelemetry('test_email_sent', { hasAttachments: (emailData.attachmentsPaths || []).length > 0 });
-		return { success: true, messageId: res.data.id };
+		if (isOAuthAvailable()) {
+			await ensureServices();
+			logEvent('info', 'Sending test email (OAuth)', { to: emailData.to, attachments: (emailData.attachmentsPaths || []).length });
+			const rawStr = buildRawEmail({
+				from: emailData.from,
+				to: emailData.to,
+				subject: emailData.subject,
+				text: emailData.content,
+				attachments: emailData.attachmentsPaths || []
+			});
+			const res = await gmailService.users.messages.send({ userId: 'me', requestBody: { raw: toBase64Url(rawStr) } });
+			logEvent('info', 'Test email sent', { to: emailData.to, id: res.data.id });
+			trackTelemetry('test_email_sent', { hasAttachments: (emailData.attachmentsPaths || []).length > 0 });
+			return { success: true, messageId: res.data.id };
+		}
+		await ensureMailer();
+		const email = getActiveSmtpEmail();
+		const creds = email && getSmtpCreds(email);
+		if (!creds) throw new Error('Not authenticated (SMTP). Please login with Gmail App Password.');
+		const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: creds.email, pass: creds.appPassword } });
+		const attachments = (emailData.attachmentsPaths || []).map(p => ({ path: p }));
+		const info = await transporter.sendMail({ from: emailData.from || creds.email, to: emailData.to, subject: emailData.subject, text: emailData.content, attachments });
+		logEvent('info', 'Test email sent (SMTP)', { to: emailData.to, id: info.messageId });
+		trackTelemetry('test_email_sent_smtp', { hasAttachments: attachments.length > 0 });
+		return { success: true, messageId: info.messageId };
 	} catch (error) {
 		console.error('Email sending error:', error);
 		logEvent('error', 'Email sending error', { error: error.message, to: emailData?.to });
@@ -682,19 +832,31 @@ async function sendTestEmail(emailData) {
 
 async function sendEmail(emailData) {
 	try {
-		await ensureServices();
-		logEvent('info', 'Sending email', { to: emailData.to, attachments: (emailData.attachmentsPaths || []).length });
-		const rawStr = buildRawEmail({
-			from: emailData.from,
-			to: emailData.to,
-			subject: emailData.subject,
-			text: emailData.content,
-			attachments: emailData.attachmentsPaths || []
-		});
-		const res = await gmailService.users.messages.send({ userId: 'me', requestBody: { raw: toBase64Url(rawStr) } });
-		logEvent('info', 'Email sent', { to: emailData.to, id: res.data.id });
-		trackTelemetry('email_sent', { hasAttachments: (emailData.attachmentsPaths || []).length > 0 });
-		return { success: true, messageId: res.data.id };
+		if (isOAuthAvailable()) {
+			await ensureServices();
+			logEvent('info', 'Sending email (OAuth)', { to: emailData.to, attachments: (emailData.attachmentsPaths || []).length });
+			const rawStr = buildRawEmail({
+				from: emailData.from,
+				to: emailData.to,
+				subject: emailData.subject,
+				text: emailData.content,
+				attachments: emailData.attachmentsPaths || []
+			});
+			const res = await gmailService.users.messages.send({ userId: 'me', requestBody: { raw: toBase64Url(rawStr) } });
+			logEvent('info', 'Email sent', { to: emailData.to, id: res.data.id });
+			trackTelemetry('email_sent', { hasAttachments: (emailData.attachmentsPaths || []).length > 0 });
+			return { success: true, messageId: res.data.id };
+		}
+		await ensureMailer();
+		const email = getActiveSmtpEmail();
+		const creds = email && getSmtpCreds(email);
+		if (!creds) throw new Error('Not authenticated (SMTP). Please login with Gmail App Password.');
+		const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: creds.email, pass: creds.appPassword } });
+		const attachments = (emailData.attachmentsPaths || []).map(p => ({ path: p }));
+		const info = await transporter.sendMail({ from: emailData.from || creds.email, to: emailData.to, subject: emailData.subject, text: emailData.content, attachments });
+		logEvent('info', 'Email sent (SMTP)', { to: emailData.to, id: info.messageId });
+		trackTelemetry('email_sent_smtp', { hasAttachments: attachments.length > 0 });
+		return { success: true, messageId: info.messageId };
 	} catch (error) {
 		console.error('Email sending error:', error);
 		logEvent('error', 'Email sending error', { error: error.message, to: emailData?.to });
@@ -792,6 +954,49 @@ ipcMain.handle('sheets-update-status', async (e, args) => updateSheetStatus(args
 ipcMain.handle('show-open-dialog', async (e, options) => dialog.showOpenDialog(mainWindow, options));
 ipcMain.handle('show-save-dialog', async (e, options) => dialog.showSaveDialog(mainWindow, options));
 ipcMain.handle('show-message-box', async (e, options) => dialog.showMessageBox(mainWindow, options));
+// Accounts IPC
+ipcMain.handle('accounts-list', async () => {
+    const map = getAccountsMap();
+    const list = Object.keys(map);
+    const smtpEmail = getActiveSmtpEmail();
+    if (smtpEmail && !list.includes(smtpEmail)) list.unshift(smtpEmail);
+    return list;
+});
+
+// Auth status IPC
+ipcMain.handle('auth-current-user', async () => {
+    try {
+        if (isOAuthAvailable()) {
+            await ensureServices();
+            const profile = await gmailService.users.getProfile({ userId: 'me' });
+            return { authenticated: true, email: profile?.data?.emailAddress || null };
+        }
+        const email = getActiveSmtpEmail();
+        return { authenticated: !!email, email: email || null };
+    } catch (e) {
+        return { authenticated: false, error: e.message };
+    }
+});
+ipcMain.handle('accounts-use', async (_e, email) => {
+    const map = getAccountsMap();
+    const entry = map[email];
+    if (!entry) {
+        const creds = getSmtpCreds(email);
+        if (creds) { setActiveSmtpEmail(email); oauth2Client = null; gmailService = null; sheetsService = null; return { success: true }; }
+        return { success: false, error: 'Account not found' };
+    }
+    try {
+        store.set('googleCreds', entry.creds);
+        store.set('googleToken', entry.token);
+        store.set('googleTokenClientId', entry.client_id);
+        // Reset clients so next call uses this token
+        oauth2Client = null; gmailService = null; sheetsService = null;
+        await ensureServices();
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
 
 ipcMain.handle('write-file', async (e, args) => {
 	try { await fs.promises.writeFile(args.path, args.content, 'utf8'); return { success: true }; }
@@ -851,6 +1056,68 @@ ipcMain.handle('templates-delete', async (e, fpath) => {
 	try { await fs.promises.unlink(fpath); return { success: true }; }
 	catch (error) { return { success: false, error: error.message }; }
 });
+
+// SMTP/App Password IPC
+ipcMain.handle('smtp-save-creds', async (_e, { email, appPassword }) => {
+    try {
+        if (!email || !appPassword) return { success: false, error: 'Email and App Password required' };
+        saveSmtpCreds(email, appPassword);
+        logEvent('info', 'SMTP credentials saved', { email: email.replace(/(.{2}).+(@.*)/, '$1***$2') });
+        return { success: true };
+    } catch (e) { return { success: false, error: e.message }; }
+});
+ipcMain.handle('smtp-clear-creds', async (_e, email) => {
+    try { clearSmtpCreds(email); return { success: true }; } catch (e) { return { success: false, error: e.message }; }
+});
+ipcMain.handle('smtp-extract-signature', async (_e, email) => {
+    try {
+        const creds = getSmtpCreds(email || getActiveSmtpEmail());
+        if (!creds) return { success: false, error: 'Not authenticated (SMTP)' };
+        await ensureImap();
+        const client = new ImapFlow({ host: 'imap.gmail.com', port: 993, secure: true, auth: { user: creds.email, pass: creds.appPassword } });
+        await client.connect();
+        let mailbox = '[Gmail]/Sent Mail';
+        try { await client.mailboxOpen(mailbox, { readOnly: true }); }
+        catch (_) { mailbox = 'Sent'; await client.mailboxOpen(mailbox, { readOnly: true }); }
+        const lock = await client.getMailboxLock(mailbox);
+        let signatureText = '';
+        try {
+            const seq = await client.search({ seen: true }, { uid: true, limit: 10, sort: ['arrived'] });
+            for (let i = seq.length - 1; i >= 0; i--) {
+                let body = '';
+                try {
+                    const part = await client.download(seq[i], '1');
+                    body = await streamToString(part);
+                } catch (_) {}
+                if (!body) continue;
+                const lines = body.split(/\r?\n/);
+                const tail = lines.slice(-15);
+                const filtered = tail.filter(l => l.trim().length > 0 && l.length <= 200);
+                const candidate = filtered.join('\n');
+                if (candidate && candidate.length >= 20) { signatureText = candidate; break; }
+            }
+        } finally {
+            lock.release();
+            await client.logout().catch(() => {});
+        }
+        if (signatureText) {
+            store.set(`smtp.signature.${creds.email}`, signatureText);
+            return { success: true, signature: signatureText };
+        }
+        return { success: false, error: 'No signature detected from recent sent emails' };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+async function streamToString(stream) {
+    return await new Promise((resolve, reject) => {
+        let data = '';
+        stream.on('data', (chunk) => { data += chunk.toString('utf8'); });
+        stream.on('end', () => resolve(data));
+        stream.on('error', (err) => reject(err));
+    });
+}
 
 // App info handlers for preload
 ipcMain.handle('get-app-version', async () => app.getVersion());

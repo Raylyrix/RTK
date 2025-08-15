@@ -96,3 +96,5 @@ The app now provides specific error messages for desktop applications:
 - **"Invalid client"**: Check your client ID and secret
 - **"Access denied"**: Enable required APIs in Google Cloud Console
 - **"Redirect URI mismatch"**: Should be handled automatically for desktop apps
+
+

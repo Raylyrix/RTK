@@ -15,7 +15,7 @@ class GoogleAuthManager {
     }
 
     setupEventListeners() {
-        // Google login button
+        // Legacy Google login button (if present in another layout)
         const googleLoginBtn = document.getElementById('googleLoginBtn');
         if (googleLoginBtn) {
             googleLoginBtn.addEventListener('click', () => this.handleGoogleLogin());
@@ -128,6 +128,8 @@ class GoogleAuthManager {
             }
         } catch (error) {
             throw error;
+        } finally {
+            this.hideLoading();
         }
     }
 

@@ -1,3 +1,17 @@
+## Distribution
+
+- Windows: `npm run build-win` produces NSIS installer (.exe) and Portable .exe in `dist-builds/`
+- macOS: `npm run build-mac` produces `.dmg` and `.zip`
+
+## Login without Google Cloud credentials
+
+Use a Gmail App Password:
+- Open Login, enter Gmail and App Password, click Login.
+- Optionally click Fetch Signature to auto-extract a signature from recent sent mail via IMAP.
+
+Sheets access without credentials:
+- Paste your Google Sheets URL. If not signed in with Google OAuth, app will try CSV export (share sheet as "Anyone with link"). Writes to sheet require OAuth.
+
 # RTX Innovations - Professional Email Marketing Platform
 
 A modern, desktop-based email marketing platform built with Electron, featuring Google Sheets integration, automated email campaigns, and a beautiful macOS-inspired interface.

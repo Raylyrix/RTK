@@ -330,7 +330,10 @@
 				<p style="color:#8E8E93; margin:0; font-size:12px;">Send bulk emails with Google Sheets integration</p>
 			</div>
 			<div style="display:flex; gap:8px; align-items:center;">
-				<button class="btn btn-secondary" id="loginBtn"><i class="fas fa-sign-in-alt"></i>Login</button>
+                <select id="accountsSelect" style="min-width:220px; padding:8px 10px; border:1px solid #e5e5e7; border-radius:6px;">
+                    <option value="">Select account</option>
+                </select>
+                <button class="btn btn-secondary" id="loginBtn"><i class="fas fa-sign-in-alt"></i>Login</button>
 				<button class="btn btn-secondary" id="importSheetBtn"><i class="fas fa-file-import"></i>Import</button>
 				<button class="btn btn-secondary" id="togglePreviewBtn"><i class="fas fa-table"></i>Preview</button>
 				<button class="btn btn-secondary" id="logsBtn"><i class="fas fa-list"></i>Logs</button>
@@ -525,24 +528,47 @@
 	<div class="modal" id="loginModal">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h3>Connect to Google</h3>
+				<h3>Login</h3>
 				<button class="modal-close" onclick="document.getElementById('loginModal').style.display='none'">&times;</button>
-                    </div>
+						</div>
 			<div class="modal-body">
-				<p style="margin-bottom: 20px;">To use AutoMailer Pro, upload your Google OAuth client credentials and complete sign in.</p>
-				<div class="form-group">
-					<label>Upload Google API Credentials</label>
-					<input type="file" id="credentialsFile" accept=".json">
-                                </div>
-				<div style="display: flex; gap: 10px; margin-top: 20px;">
-					<button class="btn btn-secondary" onclick="document.getElementById('loginModal').style.display='none'">Cancel</button>
-					<button class="btn btn-primary" id="uploadCredentialsBtn">
-						<i class="fas fa-upload"></i>Upload & Connect
-					</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+				<div style="display:flex; flex-direction:column; gap:18px;">
+					<div style="background:#f7f7fa; border:1px solid #e5e5e7; border-radius:8px; padding:12px;">
+						<h4 style="margin-bottom:8px;">Option A: Gmail App Password (Recommended)</h4>
+						<p style="font-size:13px; color:#666; margin-bottom:8px;">Enter your Gmail address and App Password. We never store your regular password. App Passwords can be revoked anytime in your Google Account.</p>
+						<div class="form-group" style="margin-bottom:8px;">
+							<label>Gmail Address</label>
+							<input type="email" id="smtpEmail" placeholder="you@gmail.com">
+						</div>
+						<div class="form-group" style="margin-bottom:8px;">
+							<label>Gmail App Password</label>
+							<input type="password" id="smtpAppPassword" placeholder="16-character app password">
+						</div>
+						<div style="display:flex; gap:10px;">
+							<button class="btn btn-primary" id="smtpLoginBtn"><i class="fas fa-right-to-bracket"></i>Login</button>
+							<button class="btn btn-secondary" id="smtpFetchSignatureBtn"><i class="fas fa-signature"></i>Fetch Signature</button>
+						</div>
+					</div>
+
+					<div style="background:#f7f7fa; border:1px solid #e5e5e7; border-radius:8px; padding:12px;">
+						<h4 style="margin-bottom:8px;">Option B: Google OAuth (Legacy)</h4>
+						<p style="font-size:13px; color:#666; margin-bottom:8px;">Upload your Google OAuth client credentials JSON. Not required for most users.</p>
+						<div class="form-group" style="margin-bottom:8px;">
+							<label>Upload Google API Credentials</label>
+							<input type="file" id="credentialsFile" accept=".json">
+						</div>
+						<button class="btn btn-secondary" id="uploadCredentialsBtn">
+							<i class="fas fa-upload"></i>Upload & Connect
+						</button>
+					</div>
+
+					<div style="display:flex; gap: 10px; margin-top: 10px;">
+						<button class="btn btn-secondary" onclick="document.getElementById('loginModal').style.display='none'">Close</button>
+					</div>
+				</div>
+							</div>
+					</div>
+			</div>
 
 	<!-- Loading Overlay -->
 	<div class="loading-overlay" id="loadingOverlay" style="display: none;">

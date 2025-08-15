@@ -12,8 +12,8 @@
     "electron": "wait-on dist/bundle.js && electron .",
     "build": "webpack --config webpack.config.js",
     "gen-icons": "node ./scripts/generate-icons.js",
-    "build-win": "npm run build && npm run gen-icons && electron-builder --win",
-    "build-mac": "npm run build && npm run gen-icons && electron-builder --mac pkg",
+    "build-win": "npm run build && npm run gen-icons && electron-builder --win nsis portable",
+    "build-mac": "npm run build && npm run gen-icons && electron-builder --mac dmg zip",
     "build-linux": "npm run build && npm run gen-icons && electron-builder --linux",
     "build-all": "npm run build && npm run gen-icons && electron-builder -mwl",
     "dist": "npm run build && npm run gen-icons && electron-builder",
@@ -47,8 +47,10 @@
     "electron-is-dev": "^2.0.0",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.1.7",
+    "imapflow": "^1.0.164",
     "googleapis": "^128.0.0",
     "mime-types": "^3.0.1",
+    "nodemailer": "^6.9.14",
     "moment": "^2.29.4",
     "node-cron": "^3.0.3",
     "xlsx": "^0.18.5"
@@ -70,15 +72,35 @@
     "extraMetadata": {
       "main": "src/main.js"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "<GITHUB_OWNER>",
+        "repo": "<REPO_NAME>"
+      }
+    ],
 
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icons/icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "RTX-Innovations-Setup-${version}.${ext}"
     },
     "mac": {
-      "target": "pkg",
+      "target": ["dmg", "zip"],
       "icon": "assets/icons/icon.icns",
       "category": "public.app-category.business",
       "identity": null,

@@ -34,6 +34,7 @@ class RTXApp {
         this.setupEventListeners();
         this.setupMenuHandlers();
         this.loadSettings();
+        this.populateAccountsDropdown();
         this.updateUI();
         console.log('✅ RTX Innovations AutoMailer Pro initialized successfully!');
         
@@ -98,6 +99,50 @@ class RTXApp {
             console.error('Login button not found!');
         }
 
+        // SMTP (App Password) login
+        const smtpLoginBtn = document.getElementById('smtpLoginBtn');
+        if (smtpLoginBtn && window.electronAPI?.smtpSaveCreds) {
+            smtpLoginBtn.addEventListener('click', async () => {
+                const email = document.getElementById('smtpEmail')?.value?.trim();
+                const appPass = document.getElementById('smtpAppPassword')?.value?.trim();
+                if (!email || !appPass) { this.showError('Enter Gmail and App Password'); return; }
+                try {
+                    this.showLoading('Validating credentials...');
+                    const res = await window.electronAPI.smtpSaveCreds({ email, appPassword: appPass });
+                    if (!res?.success) throw new Error(res?.error || 'Failed');
+                    this.onAuthenticationSuccess(email);
+                    // Fetch signature automatically (non-blocking)
+                    window.electronAPI.smtpExtractSignature?.(email).then(out => {
+                        if (out?.success && out.signature) {
+                            this.gmailSignature = out.signature;
+                            this.showSuccess('Signature fetched');
+                        }
+                    });
+                } catch (e) {
+                    this.showError(e.message || 'Login failed');
+                } finally {
+                    this.hideLoading();
+                }
+            });
+        }
+        const smtpFetchSignatureBtn = document.getElementById('smtpFetchSignatureBtn');
+        if (smtpFetchSignatureBtn && window.electronAPI?.smtpExtractSignature) {
+            smtpFetchSignatureBtn.addEventListener('click', async () => {
+                try {
+                    this.showLoading('Fetching signature...');
+                    const out = await window.electronAPI.smtpExtractSignature();
+                    if (out?.success && out.signature) {
+                        this.gmailSignature = out.signature;
+                        this.showSuccess('Signature fetched');
+                    } else {
+                        this.showError(out?.error || 'No signature detected');
+                    }
+                } finally {
+                    this.hideLoading();
+                }
+            });
+        }
+
         // Signature builder open via keyboard shortcut or menu could be added later
         const openSig = document.getElementById('openSignatureBuilder');
         if (openSig) {
@@ -106,6 +151,26 @@ class RTXApp {
 
         // Upload credentials button
         const uploadCredentialsBtn = document.getElementById('uploadCredentialsBtn');
+        const accountsSelect = document.getElementById('accountsSelect');
+        if (accountsSelect) {
+            accountsSelect.addEventListener('change', async (e) => {
+                const email = e.target.value;
+                if (email) {
+                    try {
+                        this.showLoading('Switching account...');
+                        const res = await window.electronAPI.useAccount?.(email);
+                        if (res?.success) {
+                            this.onAuthenticationSuccess(email);
+                            await this.initializeServices();
+                        } else {
+                            this.showError(res?.error || 'Failed to switch account');
+                        }
+                    } finally {
+                        this.hideLoading();
+                    }
+                }
+            });
+        }
         if (uploadCredentialsBtn) {
             console.log('Upload credentials button found, adding listener');
             uploadCredentialsBtn.addEventListener('click', () => this.handleCredentialsUpload());
@@ -232,6 +297,15 @@ class RTXApp {
 
     setupMenuHandlers() {
         if (window.electronAPI) {
+            window.electronAPI.onUpdateStatus?.(() => {});
+            // Optional progress signal from main
+            if (window.electronAPI.onAuthProgress) {
+                window.electronAPI.onAuthProgress((data) => {
+                    if (data?.step === 'token-received') {
+                        this.hideLoading();
+                    }
+                });
+            }
             window.electronAPI.onMenuAction((event, action) => {
                 this.handleMenuAction(action);
             });
@@ -243,9 +317,11 @@ class RTXApp {
             // React to auth-success from main
             if (window.electronAPI.onAuthSuccess) {
                 window.electronAPI.onAuthSuccess((data) => {
-                    if (!this.isAuthenticated) {
-                        this.onAuthenticationSuccess(data?.email || 'authenticated');
-                    }
+                    // Always dismiss any loader and close modal on auth-success
+                    this.hideLoading();
+                    const modal = document.getElementById('loginModal');
+                    if (modal) modal.style.display = 'none';
+                    this.onAuthenticationSuccess(data?.email || 'authenticated');
                 });
             }
         }
@@ -324,6 +400,9 @@ class RTXApp {
             this.hideLoading();
             this.showError(error.message || 'Authentication failed');
             throw error;
+        } finally {
+            // Ensure overlay never stays stuck
+            this.hideLoading();
         }
     }
 
@@ -376,6 +455,17 @@ class RTXApp {
         }
 
         this.fetchGmailContext();
+        // Verify auth in main to ensure state is consistent
+        setTimeout(async () => {
+            try {
+                const status = await window.electronAPI.getCurrentAuth?.();
+                if (!status?.authenticated) {
+                    this.isAuthenticated = false;
+                    this.updateUI();
+                    this.showError('Authentication failed to attach. Please try switching account from the dropdown.');
+                }
+            } catch(_) {}
+        }, 500);
     }
 
     async fetchGmailContext() {
@@ -434,6 +524,7 @@ class RTXApp {
                 return;
             }
             this.selectedSheetId = sheetId;
+            this.lastSheetUrl = sheetUrl;
 
             // Fetch tabs
             let chosenTitle = null;
@@ -492,7 +583,7 @@ class RTXApp {
     async loadSheetData() {
         try {
             if (window.electronAPI && window.electronAPI.connectToSheets) {
-                const result = await window.electronAPI.connectToSheets(this.selectedSheetId, this.selectedSheetTitle);
+                const result = await window.electronAPI.connectToSheets(this.selectedSheetId, this.selectedSheetTitle, this.lastSheetUrl || null);
                 if (result.success) {
                     this.onSheetsConnected(result.data);
                 } else {
@@ -1053,12 +1144,30 @@ class RTXApp {
                     if (this.isAuthenticated) {
                         this.updateUI();
                         this.fetchGmailContext();
+                        this.hideLoading();
                     }
                 }
             });
             this.loadTemplatesFromStore();
             window.electronAPI.storeGet('campaign-history').then(list => this.renderCampaignHistory(list));
             this.loadSchedules();
+        }
+    }
+
+    async populateAccountsDropdown() {
+        try {
+            const sel = document.getElementById('accountsSelect');
+            if (!sel || !window.electronAPI?.listAccounts) return;
+            const accounts = await window.electronAPI.listAccounts();
+            sel.innerHTML = '<option value="">Select account</option>';
+            (accounts || []).forEach(email => {
+                const opt = document.createElement('option');
+                opt.value = email; opt.textContent = email;
+                if (this.currentAccount === email) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        } catch (e) {
+            console.warn('Failed to load accounts', e);
         }
     }
 
